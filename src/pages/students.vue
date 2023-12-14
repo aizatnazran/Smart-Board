@@ -11,12 +11,26 @@ const fetchstudent = async () => {
     const teacher_id = localStorage.getItem('teacher_id')
     console.log('Teacher ID: ', teacher_id)
     if (teacher_id) {
-      const { data: student, error } = await supabase.from('students').select('*').eq('teacher_id', teacher_id)
-      console.log('Fetched students: ', student)
+      // Fetching students with class names
+      const { data: students, error } = await supabase
+        .from('students')
+        .select(
+          `
+          id,
+          name,
+          age,
+          class (
+            classname
+          )
+        `,
+        )
+        .eq('teacher_id', teacher_id)
+
+      console.log('Fetched students with class names: ', students)
       if (error) {
         console.error('Error fetching students: ', error)
-      } else if (student) {
-        studentslist.value = student
+      } else if (students) {
+        studentslist.value = students
       }
     }
   } catch (error) {
@@ -73,22 +87,27 @@ const addNewstudent = async () => {
 }
 
 const editstudent = async student => {
-  const { value: newstudentNumber } = await Swal.fire({
-    title: 'Enter the new student number',
-    input: 'text',
-    inputLabel: 'student Number',
-    inputValue: student.student_number,
-    showCancelButton: true,
-    inputValidator: value => {
-      if (!value) {
-        return 'student number cannot be empty!'
-      }
+  const { value: formValues } = await Swal.fire({
+    title: 'Edit Student Details',
+    html:
+      `<input id="swal-input1" class="swal2-input" placeholder="Name" value="${student.name}">` +
+      `<input id="swal-input2" class="swal2-input" placeholder="Class" value="${student.class?.classname}">` +
+      `<input id="swal-input3" class="swal2-input" placeholder="Age" type="number" value="${student.age}">`,
+    focusConfirm: false,
+    preConfirm: () => {
+      return [
+        document.getElementById('swal-input1').value,
+        document.getElementById('swal-input2').value,
+        document.getElementById('swal-input3').value,
+      ]
     },
+    showCancelButton: true,
   })
 
-  if (newstudentNumber) {
+  if (formValues) {
+    const [name, classname, age] = formValues
     try {
-      const updatedData = { student_number: newstudentNumber, teacher_id: student.teacher_id, id: student.id }
+      const updatedData = { id: student.id, name, class: classname, age }
 
       const { error } = await supabase.from('students').upsert([updatedData], { onConflict: 'id' })
 
@@ -98,10 +117,10 @@ const editstudent = async student => {
 
       const index = studentslist.value.findIndex(c => c.id === student.id)
       if (index !== -1) {
-        studentslist.value[index] = updatedData
+        studentslist.value[index] = { ...studentslist.value[index], ...updatedData }
       }
 
-      Swal.fire('Updated!', 'student updated successfully.', 'success')
+      Swal.fire('Updated!', 'Student updated successfully.', 'success')
     } catch (error) {
       console.error('Error updating student:', error.message)
       Swal.fire('Error!', 'Error updating student: ' + error.message, 'error')
@@ -184,7 +203,7 @@ onMounted(() => {
           :key="student.id"
         >
           <td>{{ student.name }}</td>
-          <td>{{ student.class }}</td>
+          <td>{{ student.class?.classname }}</td>
           <td>{{ student.age }}</td>
           <td class="text-center">
             <div class="icon-wrapper">

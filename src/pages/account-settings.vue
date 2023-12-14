@@ -2,7 +2,6 @@
 import AccountSettingsAccount from '@/views/pages/account-settings/AccountSettingsAccount.vue'
 import AccountSettingsNotification from '@/views/pages/account-settings/AccountSettingsNotification.vue'
 import AccountSettingsSecurity from '@/views/pages/account-settings/AccountSettingsSecurity.vue'
-import AccountSettingsWhatsapp from '@/views/pages/account-settings/AccountSettingsWhatsapp.vue'
 import { useRoute } from 'vue-router'
 
 const route = useRoute()
@@ -24,11 +23,6 @@ const tabs = [
     title: 'Notifications',
     icon: 'mdi-bell-outline',
     tab: 'notification',
-  },
-  {
-    title: 'Whatsapp Number',
-    icon: 'mdi-whatsapp',
-    tab: 'whatsapp',
   },
 ]
 </script>
@@ -71,11 +65,6 @@ const tabs = [
       <!-- Notification -->
       <VWindowItem value="notification">
         <AccountSettingsNotification />
-      </VWindowItem>
-
-      <!-- Whatsapp -->
-      <VWindowItem value="whatsapp">
-        <AccountSettingsWhatsapp />
       </VWindowItem>
     </VWindow>
   </div>
