@@ -93,9 +93,9 @@ const upgradeBanner = computed(() => {
       />
       <VerticalNavLink
         :item="{
-          title: 'Media',
-          icon: 'mdi-archive-outline',
-          to: '/document',
+          title: 'Assignments',
+          icon: 'mdi-note-edit',
+          to: '/assignments',
         }"
       />
       <VerticalNavLink

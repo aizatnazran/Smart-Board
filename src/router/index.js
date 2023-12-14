@@ -13,8 +13,8 @@ const router = createRouter({
           component: () => import('../pages/dashboard.vue'),
         },
         {
-          path: 'document',
-          component: () => import('../pages/documentPage.vue'),
+          path: 'assignments',
+          component: () => import('../pages/assignments.vue'),
         },
         {
           path: 'integration',
