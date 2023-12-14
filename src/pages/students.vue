@@ -4,7 +4,6 @@ import Swal from 'sweetalert2'
 import { onMounted, ref } from 'vue'
 
 const studentslist = ref([])
-const newstudentNumber = ref('')
 const classOptions = ref({})
 
 const fetchClasses = async () => {
@@ -80,21 +79,27 @@ const addNewstudent = async () => {
     if (name && classId && age) {
       try {
         const requestData = { name, class: classId, age, teacher_id: localStorage.getItem('teacher_id') }
-        const { data, error } = await supabase.from('students').insert([requestData])
-
+        const { error } = await supabase.from('students').insert([requestData])
         if (error) {
           throw error
         }
 
-        if (data && data.length > 0) {
-          studentslist.value.push({ ...data[0], class: { classname: classOptions.value[classId] } })
-          Swal.fire({
-            title: 'Success!',
-            text: 'Student successfully added!',
-            icon: 'success',
-            confirmButtonColor: '#3085d6',
-          })
+        // Construct the student object for UI update
+        const newStudentForUI = {
+          name,
+          age,
+          class: { id: classId, classname: classOptions.value[classId] },
         }
+
+        // Update the UI
+        studentslist.value.push(newStudentForUI)
+
+        Swal.fire({
+          title: 'Success!',
+          text: 'Student successfully added!',
+          icon: 'success',
+          confirmButtonColor: '#3085d6',
+        })
       } catch (error) {
         console.error('Error adding student:', error.message)
         Swal.fire({
@@ -134,9 +139,9 @@ const editstudent = async student => {
   })
 
   if (formValues) {
-    const [name, classname, age] = formValues
+    const [name, classId, age] = formValues
     try {
-      const updatedData = { id: student.id, name, class: classname, age }
+      const updatedData = { id: student.id, name, class: classId, age }
 
       const { error } = await supabase.from('students').upsert([updatedData], { onConflict: 'id' })
 
@@ -146,7 +151,18 @@ const editstudent = async student => {
 
       const index = studentslist.value.findIndex(c => c.id === student.id)
       if (index !== -1) {
-        studentslist.value[index] = { ...studentslist.value[index], ...updatedData }
+        const { data: updatedClass, error: classError } = await supabase
+          .from('class')
+          .select('classname')
+          .eq('id', classId)
+        if (classError) {
+          throw classError
+        }
+        studentslist.value[index] = {
+          ...studentslist.value[index],
+          ...updatedData,
+          class: { classname: updatedClass[0].classname },
+        }
       }
 
       Swal.fire('Updated!', 'Student updated successfully.', 'success')
@@ -157,7 +173,6 @@ const editstudent = async student => {
   }
 }
 
-// Function to confirm and delete a student
 const confirmDelete = async student => {
   Swal.fire({
     title: 'Are you sure?',
@@ -178,7 +193,7 @@ const confirmDelete = async student => {
 
         studentslist.value = studentslist.value.filter(c => c.id !== student.id)
 
-        Swal.fire('Deleted!', 'student has been deleted.', 'success')
+        Swal.fire('Deleted!', 'Student has been deleted.', 'success')
       } catch (error) {
         console.error('Error deleting student:', error.message)
         Swal.fire('Error!', 'Error deleting student: ' + error.message, 'error')
