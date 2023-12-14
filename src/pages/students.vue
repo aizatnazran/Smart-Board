@@ -57,53 +57,63 @@ const fetchstudent = async () => {
 }
 
 const addNewstudent = async () => {
-  if (newstudentNumber.value) {
-    try {
-      const teacher_id = localStorage.getItem('teacher_id')
-      if (teacher_id) {
-        const requestData = { student_number: newstudentNumber.value, teacher_id }
+  const { value: formValues } = await Swal.fire({
+    title: 'Add New Student',
+    html:
+      `<input id="swal-input1" class="swal2-input" placeholder="Name">` +
+      `<input id="swal-input3" class="swal2-input" placeholder="Age" type="number">`,
+    input: 'select',
+    inputOptions: classOptions.value,
+    inputPlaceholder: 'Select a class',
+    showCancelButton: true,
+    preConfirm: () => {
+      return [
+        document.getElementById('swal-input1').value,
+        Swal.getInput().value,
+        document.getElementById('swal-input3').value,
+      ]
+    },
+  })
 
+  if (formValues) {
+    const [name, classId, age] = formValues
+    if (name && classId && age) {
+      try {
+        const requestData = { name, class: classId, age, teacher_id: localStorage.getItem('teacher_id') }
         const { data, error } = await supabase.from('students').insert([requestData])
 
         if (error) {
           throw error
         }
 
-        // Ensure that the newly added student, along with its generated id, is pushed to studentslist
         if (data && data.length > 0) {
-          console.log('Newly added student data:', data[0]) // Log the newly added student data
-          studentslist.value.push(data[0])
+          studentslist.value.push({ ...data[0], class: { classname: classOptions.value[classId] } })
+          Swal.fire({
+            title: 'Success!',
+            text: 'Student successfully added!',
+            icon: 'success',
+            confirmButtonColor: '#3085d6',
+          })
         }
-
-        newstudentNumber.value = ''
-
+      } catch (error) {
+        console.error('Error adding student:', error.message)
         Swal.fire({
-          title: 'Success!',
-          text: 'student successfully added!',
-          icon: 'success',
-          confirmButtonColor: '#3085d6',
+          title: 'Error!',
+          text: 'Error adding student: ' + error.message,
+          icon: 'error',
+          confirmButtonColor: '#d33',
         })
       }
-    } catch (error) {
-      console.error('Error adding student:', error.message)
+    } else {
       Swal.fire({
-        title: 'Error!',
-        text: 'Error adding student: ' + error.message,
-        icon: 'error',
-        confirmButtonColor: '#d33',
+        title: 'Attention!',
+        text: 'Please fill in all fields before submitting.',
+        icon: 'warning',
+        confirmButtonColor: '#3085d6',
       })
     }
-  } else {
-    Swal.fire({
-      title: 'Attention!',
-      text: 'Please enter a student number before submitting.',
-      icon: 'warning',
-      confirmButtonColor: '#3085d6',
-    })
   }
-  fetchstudent()
 }
-
 const editstudent = async student => {
   const { value: formValues } = await Swal.fire({
     title: 'Edit Student Details',
@@ -237,33 +247,9 @@ onMounted(() => {
     <VDivider />
 
     <VCardText>
-      <VForm @submit.prevent="() => {}">
-        <p class="text-base font-weight-medium mt-5">Add new student</p>
-
-        <VRow>
-          <VCol
-            cols="12"
-            sm="6"
-          >
-            <VTextField
-              label="Student Name"
-              v-model="newstudentNumber"
-              variant="solo-filled"
-            />
-          </VCol>
-        </VRow>
-
-        <div class="d-flex flex-wrap gap-4 mt-4">
-          <VBtn @click="addNewstudent"> Add student </VBtn>
-          <VBtn
-            color="secondary"
-            variant="tonal"
-            type="reset"
-          >
-            Reset
-          </VBtn>
-        </div>
-      </VForm>
+      <div class="d-flex flex-wrap gap-4 mt-4">
+        <VBtn @click="addNewstudent">Add student</VBtn>
+      </div>
     </VCardText>
   </VCard>
 </template>
