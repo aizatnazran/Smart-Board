@@ -5,6 +5,24 @@ import { onMounted, ref } from 'vue'
 
 const studentslist = ref([])
 const newstudentNumber = ref('')
+const classOptions = ref({})
+
+const fetchClasses = async () => {
+  try {
+    const { data: classes, error } = await supabase.from('class').select('id, classname')
+
+    if (error) {
+      console.error('Error fetching classes:', error)
+    } else {
+      classOptions.value = classes.reduce((options, cls) => {
+        options[cls.id] = cls.classname
+        return options
+      }, {})
+    }
+  } catch (error) {
+    console.error(error)
+  }
+}
 
 const fetchstudent = async () => {
   try {
@@ -91,17 +109,18 @@ const editstudent = async student => {
     title: 'Edit Student Details',
     html:
       `<input id="swal-input1" class="swal2-input" placeholder="Name" value="${student.name}">` +
-      `<input id="swal-input2" class="swal2-input" placeholder="Class" value="${student.class?.classname}">` +
       `<input id="swal-input3" class="swal2-input" placeholder="Age" type="number" value="${student.age}">`,
-    focusConfirm: false,
+    input: 'select',
+    inputOptions: classOptions.value,
+    inputValue: student.class?.id,
+    showCancelButton: true,
     preConfirm: () => {
       return [
         document.getElementById('swal-input1').value,
-        document.getElementById('swal-input2').value,
+        Swal.getInput().value,
         document.getElementById('swal-input3').value,
       ]
     },
-    showCancelButton: true,
   })
 
   if (formValues) {
@@ -159,6 +178,7 @@ const confirmDelete = async student => {
 }
 
 onMounted(() => {
+  fetchClasses()
   const teacher_id = localStorage.getItem('teacher_id')
   if (teacher_id) {
     fetchstudent()
