@@ -1,5 +1,5 @@
 <script setup>
-import csvimg from '@images/images/csv.png'
+import csvimg from '@images/images/assignments.png'
 import Swal from 'sweetalert2'
 import { useTheme } from 'vuetify'
 import { supabase } from '../lib/supaBaseClient.js'
@@ -8,18 +8,14 @@ import { supabase } from '../lib/supaBaseClient.js'
 
 const vuetifyTheme = useTheme()
 
-const selectedFile = ref(null)
+const selectedFiles = ref([])
+
+const dialog = ref(false)
 
 const handleFileChange = event => {
-  selectedFile.value = event.target.files[0]
-  console.log('Selected file:', selectedFile.value)
+  selectedFiles.value = Array.from(event.target.files) // Store all selected files
+  console.log('Selected files:', selectedFiles.value)
 }
-
-const templateOptions = ref([
-  { label: 'Template 1', value: 'template1' },
-  { label: 'Template 2', value: 'template2' },
-  { label: 'Template 3', value: 'template3' },
-])
 
 const selectedTemplate = ref('template1')
 
@@ -33,90 +29,82 @@ const sheet = ref(false)
 
 // })
 const userUUID = localStorage.getItem('uuid')
-const companyId = localStorage.getItem('teacher_id')
+const teacherId = localStorage.getItem('teacher_id')
 
-const uploadFile = async () => {
-  if (!selectedFile.value) {
+const currentFile = ref(null)
+
+const handleCardClick = file => {
+  currentFile.value = file
+  dialog.value = true
+}
+
+const uploadFiles = async () => {
+  if (!selectedFiles.value.length) {
     await Swal.fire({
       title: 'Error!',
       text: 'No file selected.',
       icon: 'error',
-      customClass: {
-        container: 'high-z-index-swal',
-      },
+      customClass: { container: 'high-z-index-swal' },
     })
     return
   }
 
-  // Get the original file name
-  const originalFileName = selectedFile.value.name
-  console.log('Original file name:', originalFileName)
+  let uploadErrors = []
 
-  // Construct the new file name with uuid and original file name
-  const newFileName = `${userUUID}_${originalFileName}`
-  console.log('New file name for storage:', newFileName)
+  for (const file of selectedFiles.value) {
+    const originalFileName = file.name
+    const newFileName = `${userUUID}_${originalFileName}`
+    const filePath = `${newFileName}`
 
-  const filePath = `${newFileName}` // Use new file name for the path
+    // Upload each file to Supabase Storage
+    const { error: uploadError } = await supabase.storage.from('assignments').upload(filePath, file)
 
-  // Upload to Supabase Storage with the new file name
-  const { error: uploadError } = await supabase.storage.from('documents').upload(filePath, selectedFile.value)
+    if (uploadError) {
+      console.error('Error uploading file:', uploadError)
+      uploadErrors.push(originalFileName) // Add the file name to the error list
+      continue
+    }
 
-  if (uploadError) {
-    console.error('Error uploading file:', uploadError)
-    Swal.fire({
-      title: 'Error!',
-      text: 'Error uploading file.',
-      icon: 'error',
-      customClass: {
-        container: 'high-z-index-swal',
+    // Add record to the database for each file
+    const { error: dbError } = await supabase.from('uploadfile').insert([
+      {
+        uploadfile_filename: originalFileName,
+        uploadfile_teacher: teacherId,
+        uploadfile_uuid: userUUID,
       },
-    })
-    // Do not toggle 'sheet' here
-    return
+    ])
+
+    if (dbError) {
+      console.error('Error saving file info to database:', dbError)
+      uploadErrors.push(originalFileName) // Add the file name to the error list
+    }
   }
 
-  // Add a record to your database with the original file name
-  const { error: dbError } = await supabase.from('uploadfile').insert([
-    {
-      uploadfile_filename: originalFileName, // Keep the original file name in the database
-      uploadfile_company: teacher_id,
-      uploadfile_uuid: userUUID,
-    },
-  ])
-
-  if (dbError) {
-    console.error('Error saving file info to database:', dbError)
-    Swal.fire({
-      title: 'Error!',
-      text: 'Error saving file info to database.',
-      icon: 'error',
-      customClass: {
-        container: 'high-z-index-swal',
-      },
-    })
-  }
-
-  // Clear the selected file
-  selectedFile.value = null
+  // Clear the selected files
+  selectedFiles.value = []
 
   // Update the files list
   filesList.value = await fetchFiles()
 
-  Swal.fire({
-    title: 'Success!',
-    text: 'Your file has been uploaded.',
-    icon: 'success',
-    customClass: {
-      container: 'high-z-index-swal',
-    },
-  })
+  if (uploadErrors.length === 0) {
+    Swal.fire({
+      title: 'Success!',
+      text: 'All your files have been uploaded.',
+      icon: 'success',
+      customClass: { container: 'high-z-index-swal' },
+    })
+  } else {
+    Swal.fire({
+      title: 'Some or all files failed to upload',
+      text: `The following files could not be uploaded: ${uploadErrors.join(', ')}`,
+      icon: 'warning',
+      customClass: { container: 'high-z-index-swal' },
+    })
+  }
 }
 
 async function fetchFiles() {
-  let { data: files, error } = await supabase
-    .from('uploadfile')
-    .select('uploadfile_filename')
-    .eq('uploadfile_company', companyId)
+  let { data: files, error } = await supabase.from('uploadfile').select('*').eq('uploadfile_teacher', teacherId)
 
   if (error) console.log('Error fetching files:', error)
   else return files
@@ -139,7 +127,7 @@ const confirmDelete = async file => {
         let { error } = await supabase
           .from('uploadfile')
           .delete()
-          .match({ uploadfile_filename: file.uploadfile_filename, uploadfile_company: companyId })
+          .match({ uploadfile_filename: file.uploadfile_filename, uploadfile_teacher: teacherId })
 
         if (error) throw error
 
@@ -166,7 +154,6 @@ onMounted(async () => {
   filesList.value = await fetchFiles()
 })
 </script>
-
 <template>
   <VRow>
     <VSpacer />
@@ -200,8 +187,8 @@ onMounted(async () => {
             :key="file.uploadfile_filename"
           >
             <VCard
-              class="elevation-0 ma-1"
-              style="max-width: 10%; max-height: 180px; min-width: 95px; border-radius: 5%; opacity: 0.8"
+              class="document-card ma-1"
+              @click="handleCardClick(file)"
             >
               <VBtn
                 icon
@@ -222,14 +209,32 @@ onMounted(async () => {
                 <VIcon size="x-small">mdi-close</VIcon>
               </VBtn>
               <VImg
-                class="ma-3"
+                class="ma-1 large-image"
                 max-width="100"
                 :src="csvimg"
               />
-              <p class="text-center text-caption px-2">{{ file.uploadfile_filename }}</p>
+              <p class="text-center text-caption px-2 file-name">{{ file.uploadfile_filename }}</p>
             </VCard>
           </template>
         </template>
+        <VDialog v-model="dialog">
+          <VCard>
+            <VCardTitle>File Details</VCardTitle>
+            <VCardText>
+              <div>Name: {{ currentFile.value?.uploadfile_filename }}</div>
+              <div>Size: {{ currentFile.value?.size }} bytes</div>
+              <div>Uploaded: {{ currentFile.value?.created_at }}</div>
+            </VCardText>
+            <VCardActions>
+              <VBtn
+                icon
+                @click="confirmDelete(currentFile.value)"
+              >
+                <VIcon>mdi-delete</VIcon>
+              </VBtn>
+            </VCardActions>
+          </VCard>
+        </VDialog>
       </VRow>
     </VContainer>
 
@@ -255,12 +260,13 @@ onMounted(async () => {
               @change="handleFileChange"
               counter
               truncate-length="15"
+              multiple
             />
           </VContainer>
           <VBtn
             class="mt-5"
             prepend-icon="mdi-send-variant"
-            @click="uploadFile"
+            @click="uploadFiles"
           >
             Upload
           </VBtn>
@@ -276,5 +282,27 @@ onMounted(async () => {
 }
 .overlaying-component-class {
   z-index: 1050;
+}
+
+.large-image {
+  width: 100px; /* Adjust width as needed */
+  height: 100px; /* Adjust height as needed */
+}
+
+.document-card {
+  width: 100px;
+  height: 150px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  border-radius: 5%;
+  opacity: 0.8;
+}
+
+.file-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
 }
 </style>
