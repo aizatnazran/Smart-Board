@@ -4,7 +4,24 @@ import Swal from 'sweetalert2'
 import { onMounted, ref } from 'vue'
 
 const studentslist = ref([])
-const newstudentNumber = ref('')
+const classOptions = ref({})
+
+const fetchClasses = async () => {
+  try {
+    const { data: classes, error } = await supabase.from('class').select('id, classname')
+
+    if (error) {
+      console.error('Error fetching classes:', error)
+    } else {
+      classOptions.value = classes.reduce((options, cls) => {
+        options[cls.id] = cls.classname
+        return options
+      }, {})
+    }
+  } catch (error) {
+    console.error(error)
+  }
+}
 
 const fetchstudent = async () => {
   try {
@@ -39,75 +56,92 @@ const fetchstudent = async () => {
 }
 
 const addNewstudent = async () => {
-  if (newstudentNumber.value) {
-    try {
-      const teacher_id = localStorage.getItem('teacher_id')
-      if (teacher_id) {
-        const requestData = { student_number: newstudentNumber.value, teacher_id }
+  const { value: formValues } = await Swal.fire({
+    title: 'Add New Student',
+    html:
+      `<input id="swal-input1" class="swal2-input" placeholder="Name">` +
+      `<input id="swal-input3" class="swal2-input" placeholder="Age" type="number">`,
+    input: 'select',
+    inputOptions: classOptions.value,
+    inputPlaceholder: 'Select a class',
+    showCancelButton: true,
+    preConfirm: () => {
+      return [
+        document.getElementById('swal-input1').value,
+        Swal.getInput().value,
+        document.getElementById('swal-input3').value,
+      ]
+    },
+  })
 
-        const { data, error } = await supabase.from('students').insert([requestData])
-
+  if (formValues) {
+    const [name, classId, age] = formValues
+    if (name && classId && age) {
+      try {
+        const requestData = { name, class: classId, age, teacher_id: localStorage.getItem('teacher_id') }
+        const { error } = await supabase.from('students').insert([requestData])
         if (error) {
           throw error
         }
 
-        // Ensure that the newly added student, along with its generated id, is pushed to studentslist
-        if (data && data.length > 0) {
-          console.log('Newly added student data:', data[0]) // Log the newly added student data
-          studentslist.value.push(data[0])
+        // Construct the student object for UI update
+        const newStudentForUI = {
+          name,
+          age,
+          class: { id: classId, classname: classOptions.value[classId] },
         }
 
-        newstudentNumber.value = ''
+        // Update the UI
+        studentslist.value.push(newStudentForUI)
 
         Swal.fire({
           title: 'Success!',
-          text: 'student successfully added!',
+          text: 'Student successfully added!',
           icon: 'success',
           confirmButtonColor: '#3085d6',
         })
+      } catch (error) {
+        console.error('Error adding student:', error.message)
+        Swal.fire({
+          title: 'Error!',
+          text: 'Error adding student: ' + error.message,
+          icon: 'error',
+          confirmButtonColor: '#d33',
+        })
       }
-    } catch (error) {
-      console.error('Error adding student:', error.message)
+    } else {
       Swal.fire({
-        title: 'Error!',
-        text: 'Error adding student: ' + error.message,
-        icon: 'error',
-        confirmButtonColor: '#d33',
+        title: 'Attention!',
+        text: 'Please fill in all fields before submitting.',
+        icon: 'warning',
+        confirmButtonColor: '#3085d6',
       })
     }
-  } else {
-    Swal.fire({
-      title: 'Attention!',
-      text: 'Please enter a student number before submitting.',
-      icon: 'warning',
-      confirmButtonColor: '#3085d6',
-    })
   }
-  fetchstudent()
 }
-
 const editstudent = async student => {
   const { value: formValues } = await Swal.fire({
     title: 'Edit Student Details',
     html:
       `<input id="swal-input1" class="swal2-input" placeholder="Name" value="${student.name}">` +
-      `<input id="swal-input2" class="swal2-input" placeholder="Class" value="${student.class?.classname}">` +
       `<input id="swal-input3" class="swal2-input" placeholder="Age" type="number" value="${student.age}">`,
-    focusConfirm: false,
+    input: 'select',
+    inputOptions: classOptions.value,
+    inputValue: student.class?.id,
+    showCancelButton: true,
     preConfirm: () => {
       return [
         document.getElementById('swal-input1').value,
-        document.getElementById('swal-input2').value,
+        Swal.getInput().value,
         document.getElementById('swal-input3').value,
       ]
     },
-    showCancelButton: true,
   })
 
   if (formValues) {
-    const [name, classname, age] = formValues
+    const [name, classId, age] = formValues
     try {
-      const updatedData = { id: student.id, name, class: classname, age }
+      const updatedData = { id: student.id, name, class: classId, age }
 
       const { error } = await supabase.from('students').upsert([updatedData], { onConflict: 'id' })
 
@@ -117,7 +151,18 @@ const editstudent = async student => {
 
       const index = studentslist.value.findIndex(c => c.id === student.id)
       if (index !== -1) {
-        studentslist.value[index] = { ...studentslist.value[index], ...updatedData }
+        const { data: updatedClass, error: classError } = await supabase
+          .from('class')
+          .select('classname')
+          .eq('id', classId)
+        if (classError) {
+          throw classError
+        }
+        studentslist.value[index] = {
+          ...studentslist.value[index],
+          ...updatedData,
+          class: { classname: updatedClass[0].classname },
+        }
       }
 
       Swal.fire('Updated!', 'Student updated successfully.', 'success')
@@ -128,7 +173,6 @@ const editstudent = async student => {
   }
 }
 
-// Function to confirm and delete a student
 const confirmDelete = async student => {
   Swal.fire({
     title: 'Are you sure?',
@@ -149,7 +193,7 @@ const confirmDelete = async student => {
 
         studentslist.value = studentslist.value.filter(c => c.id !== student.id)
 
-        Swal.fire('Deleted!', 'student has been deleted.', 'success')
+        Swal.fire('Deleted!', 'Student has been deleted.', 'success')
       } catch (error) {
         console.error('Error deleting student:', error.message)
         Swal.fire('Error!', 'Error deleting student: ' + error.message, 'error')
@@ -159,6 +203,7 @@ const confirmDelete = async student => {
 }
 
 onMounted(() => {
+  fetchClasses()
   const teacher_id = localStorage.getItem('teacher_id')
   if (teacher_id) {
     fetchstudent()
@@ -217,33 +262,9 @@ onMounted(() => {
     <VDivider />
 
     <VCardText>
-      <VForm @submit.prevent="() => {}">
-        <p class="text-base font-weight-medium mt-5">Add new student</p>
-
-        <VRow>
-          <VCol
-            cols="12"
-            sm="6"
-          >
-            <VTextField
-              label="Student Name"
-              v-model="newstudentNumber"
-              variant="solo-filled"
-            />
-          </VCol>
-        </VRow>
-
-        <div class="d-flex flex-wrap gap-4 mt-4">
-          <VBtn @click="addNewstudent"> Add student </VBtn>
-          <VBtn
-            color="secondary"
-            variant="tonal"
-            type="reset"
-          >
-            Reset
-          </VBtn>
-        </div>
-      </VForm>
+      <div class="d-flex flex-wrap gap-4 mt-4">
+        <VBtn @click="addNewstudent">Add student</VBtn>
+      </div>
     </VCardText>
   </VCard>
 </template>

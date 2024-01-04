@@ -1,8 +1,4 @@
 <script setup>
-import blankImage from '@images/images/blank.png'
-import csvImage from '@images/images/csv.png'
-import pdfImage from '@images/images/pdf.png'
-import xlsImage from '@images/images/xls.png'
 
 import Swal from 'sweetalert2'
 import { useTheme } from 'vuetify'
@@ -19,19 +15,13 @@ const handleFileChange = event => {
   console.log('Selected file:', selectedFile.value)
 }
 
-function getImageSrc(fileName) {
-  const extension = fileName.split('.').pop()
-  switch (extension.toLowerCase()) {
-    case 'csv':
-      return csvImage
-    case 'pdf':
-      return pdfImage
-    case 'xlsx':
-      return xlsImage
-    default:
-      return blankImage
-  }
-}
+const templateOptions = ref([
+  { label: 'Template 1', value: 'template1' },
+  { label: 'Template 2', value: 'template2' },
+  { label: 'Template 3', value: 'template3' },
+])
+
+const selectedTemplate = ref('template1')
 
 const sheet = ref(false)
 
@@ -43,15 +33,25 @@ const sheet = ref(false)
 
 // })
 const userUUID = localStorage.getItem('uuid')
+<<<<<<< HEAD:src/pages/documentPage.vue
 const teacherId = localStorage.getItem('teacher_id')
+=======
+const companyId = localStorage.getItem('teacher_id')
+>>>>>>> f4bce324e49e3fce8717e06ef2942d382b225b47:src/pages/assignments.vue
 
 const uploadFile = async () => {
   if (!selectedFile.value) {
-    Swal.fire({
+    await Swal.fire({
       title: 'Error!',
       text: 'No file selected.',
       icon: 'error',
+<<<<<<< HEAD:src/pages/documentPage.vue
       customClass: { container: 'high-z-index-swal' },
+=======
+      customClass: {
+        container: 'high-z-index-swal',
+      },
+>>>>>>> f4bce324e49e3fce8717e06ef2942d382b225b47:src/pages/assignments.vue
     })
     return
   }
@@ -75,8 +75,15 @@ const uploadFile = async () => {
       title: 'Error!',
       text: 'Error uploading file.',
       icon: 'error',
+<<<<<<< HEAD:src/pages/documentPage.vue
       customClass: { container: 'high-z-index-swal' },
+=======
+      customClass: {
+        container: 'high-z-index-swal',
+      },
+>>>>>>> f4bce324e49e3fce8717e06ef2942d382b225b47:src/pages/assignments.vue
     })
+    // Do not toggle 'sheet' here
     return
   }
 
@@ -84,7 +91,11 @@ const uploadFile = async () => {
   const { error: dbError } = await supabase.from('uploadfile').insert([
     {
       uploadfile_filename: originalFileName, // Keep the original file name in the database
+<<<<<<< HEAD:src/pages/documentPage.vue
       uploadfile_teacher: teacherId,
+=======
+      uploadfile_company: teacher_id,
+>>>>>>> f4bce324e49e3fce8717e06ef2942d382b225b47:src/pages/assignments.vue
       uploadfile_uuid: userUUID,
     },
   ])
@@ -95,9 +106,14 @@ const uploadFile = async () => {
       title: 'Error!',
       text: 'Error saving file info to database.',
       icon: 'error',
+<<<<<<< HEAD:src/pages/documentPage.vue
       customClass: { container: 'high-z-index-swal' },
+=======
+      customClass: {
+        container: 'high-z-index-swal',
+      },
+>>>>>>> f4bce324e49e3fce8717e06ef2942d382b225b47:src/pages/assignments.vue
     })
-    return
   }
 
   // Clear the selected file
@@ -110,7 +126,13 @@ const uploadFile = async () => {
     title: 'Success!',
     text: 'Your file has been uploaded.',
     icon: 'success',
+<<<<<<< HEAD:src/pages/documentPage.vue
     customClass: { container: 'high-z-index-swal' },
+=======
+    customClass: {
+      container: 'high-z-index-swal',
+    },
+>>>>>>> f4bce324e49e3fce8717e06ef2942d382b225b47:src/pages/assignments.vue
   })
 }
 
@@ -177,7 +199,7 @@ onMounted(async () => {
       v-bind="props"
       @click="sheet = !sheet"
     >
-      Upload Document
+      Upload Assignment
     </VBtn>
   </VRow>
   <div>
@@ -185,11 +207,16 @@ onMounted(async () => {
       <!-- Submitted Document Docs -->
       <VRow>
         <VChip class="mb-3 mt-6">
+          <<<<<<< HEAD:src/pages/documentPage.vue
           <p class="text-title ma-5">Uploaded Assignments</p>
+          =======
+          <p class="text-title ma-5">Assignments Uploaded</p>
+          >>>>>>> f4bce324e49e3fce8717e06ef2942d382b225b47:src/pages/assignments.vue
         </VChip>
       </VRow>
 
       <VRow>
+        <<<<<<< HEAD:src/pages/documentPage.vue
         <VCard
           class="document-card ma-1"
           v-for="file in filesList"
@@ -212,6 +239,50 @@ onMounted(async () => {
           />
           <p class="file-name">{{ file.uploadfile_filename }}</p>
         </VCard>
+        =======
+        <div
+          v-if="filesList.length === 0"
+          class="text-center my-5"
+        >
+          <p>No assignments uploaded yet.</p>
+        </div>
+        <template v-else>
+          <template
+            v-for="file in filesList"
+            :key="file.uploadfile_filename"
+          >
+            <VCard
+              class="elevation-0 ma-1"
+              style="max-width: 10%; max-height: 180px; min-width: 95px; border-radius: 5%; opacity: 0.8"
+            >
+              <VBtn
+                icon
+                class="m-2"
+                style="
+                  position: absolute;
+                  top: 0;
+                  right: 0;
+                  z-index: 2;
+                  width: 24px;
+                  height: 24px;
+                  min-width: 24px;
+                  padding: 0;
+                  margin: 2px;
+                "
+                @click="confirmDelete(file)"
+              >
+                <VIcon size="x-small">mdi-close</VIcon>
+              </VBtn>
+              <VImg
+                class="ma-3"
+                max-width="100"
+                :src="csvimg"
+              />
+              <p class="text-center text-caption px-2">{{ file.uploadfile_filename }}</p>
+            </VCard>
+          </template>
+        </template>
+        >>>>>>> f4bce324e49e3fce8717e06ef2942d382b225b47:src/pages/assignments.vue
       </VRow>
     </VContainer>
 
@@ -220,18 +291,19 @@ onMounted(async () => {
         v-model="sheet"
         activator="parent"
         width="60%"
+        class="overlaying-component-class"
       >
         <VCard class="pa-10">
           <VContainer
-            class="pa-5 rounded-lg mt-2"
-            style="background-color: rgb(222, 222, 222)"
+            class="pa-5 rounded-lg mt-2 border-2"
+            style="background-color: var(--v-theme-on-surface); border: 2px solid #8a8d93"
           >
             <!--
                 <div class="text-overline text-start ml-10">
                 File Menu :
                 </div> 
               -->
-            <div class="text-overline text-start ml-10 text-white">File Upload :</div>
+            <div class="text-overline text-start ml-10 text-title">File Upload :</div>
             <VFileInput
               @change="handleFileChange"
               counter
@@ -252,6 +324,7 @@ onMounted(async () => {
 </template>
 
 <style>
+<<<<<<< HEAD:src/pages/documentPage.vue
 .document-card {
   width: 180px;
   height: 120px;
@@ -290,4 +363,12 @@ onMounted(async () => {
 .high-z-index-swal {
   z-index: 9999999 !important;
 }
+=======
+.high-z-index-swal {
+  z-index: 9999999 !important;
+}
+.overlaying-component-class {
+  z-index: 1050;
+}
+>>>>>>> f4bce324e49e3fce8717e06ef2942d382b225b47:src/pages/assignments.vue
 </style>
