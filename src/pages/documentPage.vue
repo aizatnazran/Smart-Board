@@ -1,5 +1,9 @@
 <script setup>
-import csvimg from '@images/images/csv.png'
+import blankImage from '@images/images/blank.png'
+import csvImage from '@images/images/csv.png'
+import pdfImage from '@images/images/pdf.png'
+import xlsImage from '@images/images/xls.png'
+
 import Swal from 'sweetalert2'
 import { useTheme } from 'vuetify'
 import { supabase } from '../lib/supaBaseClient.js'
@@ -15,6 +19,20 @@ const handleFileChange = event => {
   console.log('Selected file:', selectedFile.value)
 }
 
+function getImageSrc(fileName) {
+  const extension = fileName.split('.').pop()
+  switch (extension.toLowerCase()) {
+    case 'csv':
+      return csvImage
+    case 'pdf':
+      return pdfImage
+    case 'xlsx':
+      return xlsImage
+    default:
+      return blankImage
+  }
+}
+
 const sheet = ref(false)
 
 // const props = defineProps({
@@ -25,7 +43,7 @@ const sheet = ref(false)
 
 // })
 const userUUID = localStorage.getItem('uuid')
-const companyId = localStorage.getItem('company_id')
+const teacherId = localStorage.getItem('teacher_id')
 
 const uploadFile = async () => {
   if (!selectedFile.value) {
@@ -33,6 +51,7 @@ const uploadFile = async () => {
       title: 'Error!',
       text: 'No file selected.',
       icon: 'error',
+      customClass: { container: 'high-z-index-swal' },
     })
     return
   }
@@ -48,7 +67,7 @@ const uploadFile = async () => {
   const filePath = `${newFileName}` // Use new file name for the path
 
   // Upload to Supabase Storage with the new file name
-  const { error: uploadError } = await supabase.storage.from('documents').upload(filePath, selectedFile.value)
+  const { error: uploadError } = await supabase.storage.from('assignments').upload(filePath, selectedFile.value)
 
   if (uploadError) {
     console.error('Error uploading file:', uploadError)
@@ -56,6 +75,7 @@ const uploadFile = async () => {
       title: 'Error!',
       text: 'Error uploading file.',
       icon: 'error',
+      customClass: { container: 'high-z-index-swal' },
     })
     return
   }
@@ -64,7 +84,7 @@ const uploadFile = async () => {
   const { error: dbError } = await supabase.from('uploadfile').insert([
     {
       uploadfile_filename: originalFileName, // Keep the original file name in the database
-      uploadfile_company: companyId,
+      uploadfile_teacher: teacherId,
       uploadfile_uuid: userUUID,
     },
   ])
@@ -75,6 +95,7 @@ const uploadFile = async () => {
       title: 'Error!',
       text: 'Error saving file info to database.',
       icon: 'error',
+      customClass: { container: 'high-z-index-swal' },
     })
     return
   }
@@ -89,6 +110,7 @@ const uploadFile = async () => {
     title: 'Success!',
     text: 'Your file has been uploaded.',
     icon: 'success',
+    customClass: { container: 'high-z-index-swal' },
   })
 }
 
@@ -96,7 +118,7 @@ async function fetchFiles() {
   let { data: files, error } = await supabase
     .from('uploadfile')
     .select('uploadfile_filename')
-    .eq('uploadfile_company', companyId)
+    .eq('uploadfile_teacher', teacherId)
 
   if (error) console.log('Error fetching files:', error)
   else return files
@@ -119,7 +141,7 @@ const confirmDelete = async file => {
         let { error } = await supabase
           .from('uploadfile')
           .delete()
-          .match({ uploadfile_filename: file.uploadfile_filename, uploadfile_company: companyId })
+          .match({ uploadfile_filename: file.uploadfile_filename, uploadfile_teacher: teacherId })
 
         if (error) throw error
 
@@ -163,45 +185,33 @@ onMounted(async () => {
       <!-- Submitted Document Docs -->
       <VRow>
         <VChip class="mb-3 mt-6">
-          <p class="text-title ma-5">Submitted Document</p>
+          <p class="text-title ma-5">Uploaded Assignments</p>
         </VChip>
       </VRow>
 
       <VRow>
-        <template
+        <VCard
+          class="document-card ma-1"
           v-for="file in filesList"
           :key="file.uploadfile_filename"
+          cols="6"
         >
-          <VCard
-            class="elevation-0 ma-1"
-            style="max-width: 10%; max-height: 180px; min-width: 95px; border-radius: 5%; opacity: 0.8"
+          <v-btn
+            icon
+            flat
+            color="transparent"
+            class="dots-button"
+            v-on="on"
+            @click="confirmDelete(file)"
           >
-            <VBtn
-              icon
-              class="m-2"
-              style="
-                position: absolute;
-                top: 0;
-                right: 0;
-                z-index: 2;
-                width: 24px;
-                height: 24px;
-                min-width: 24px;
-                padding: 0;
-                margin: 2px;
-              "
-              @click="confirmDelete(file)"
-            >
-              <VIcon size="x-small">mdi-close</VIcon>
-            </VBtn>
-            <VImg
-              class="ma-3"
-              max-width="100"
-              :src="csvimg"
-            />
-            <p class="text-center text-caption px-2">{{ file.uploadfile_filename }}</p>
-          </VCard>
-        </template>
+            <v-icon>mdi-dots-vertical</v-icon>
+          </v-btn>
+          <img
+            :src="getImageSrc(file.uploadfile_filename)"
+            alt="Document Icon"
+          />
+          <p class="file-name">{{ file.uploadfile_filename }}</p>
+        </VCard>
       </VRow>
     </VContainer>
 
@@ -240,3 +250,44 @@ onMounted(async () => {
     </div>
   </div>
 </template>
+
+<style>
+.document-card {
+  width: 180px;
+  height: 120px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.8;
+  position: relative;
+}
+
+.document-card img {
+  width: 50px;
+  margin: auto;
+}
+
+.file-name {
+  text-align: center;
+  margin-bottom: 2px;
+  padding: 0 10px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 170px;
+  font-size: 12px;
+  font-weight: bold;
+}
+
+.dots-button {
+  position: absolute;
+  top: 1px;
+  right: 1px;
+  z-index: 10;
+}
+
+.high-z-index-swal {
+  z-index: 9999999 !important;
+}
+</style>
