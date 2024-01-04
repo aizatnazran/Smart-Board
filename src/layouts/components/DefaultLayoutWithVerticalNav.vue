@@ -107,16 +107,16 @@ const upgradeBanner = computed(() => {
       />
       <VerticalNavLink
         :item="{
-          title: 'Integration',
-          icon: 'mdi-align-horizontal-left',
-          to: '/integration',
+          title: 'Template',
+          icon: 'mdi-arrange-send-backward',
+          to: '/comingsoon2',
         }"
       />
       <VerticalNavLink
         :item="{
-          title: 'Template',
-          icon: 'mdi-arrange-send-backward',
-          to: '/comingsoon2',
+          title: 'Announcements',
+          icon: 'mdi-bullhorn',
+          to: '/announcements',
         }"
       />
       <!--

@@ -4,14 +4,19 @@ import triangleDark from '@images/misc/triangle-dark.png'
 import triangleLight from '@images/misc/triangle-light.png'
 import trophy from '@images/misc/trophy.png'
 import { computed, onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router' // Import useRouter
 import { useTheme } from 'vuetify'
 
 // Vue Composition API References
 const { global } = useTheme()
-
+const router = useRouter() // Use Vue Router
 const teacherName = ref('')
 
 const triangleBg = computed(() => (global.name.value === 'light' ? triangleLight : triangleDark))
+
+const viewAssignments = () => {
+  router.push('/assignments')
+}
 
 onMounted(async () => {
   const teacherId = localStorage.getItem('teacher_id')
@@ -38,9 +43,14 @@ onMounted(async () => {
   >
     <h2 class="ml-5 text-2xl font-weight-bold text-black">Teacher {{ teacherName }}</h2>
     <VCardText>
-      <h5 class="text-2xl font-weight-medium text-primary">$42.8k</h5>
-      <p>78% of target 🚀</p>
-      <VBtn size="small"> View Sales </VBtn>
+      <h5 class="text-2xl font-weight-medium text-primary">5 Students</h5>
+      <p>out of 36 students have submitted 🚀</p>
+      <VBtn
+        size="small"
+        @click="viewAssignments"
+      >
+        View Submitted Assignments</VBtn
+      >
     </VCardText>
 
     <!-- Triangle Background -->

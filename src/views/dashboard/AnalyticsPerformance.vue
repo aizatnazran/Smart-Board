@@ -1,10 +1,14 @@
 <script setup>
 import { hexToRgb } from '@layouts/utils'
+import { useRouter } from 'vue-router'
 import VueApexCharts from 'vue3-apexcharts'
 import { useTheme } from 'vuetify'
 
+const router = useRouter()
 const vuetifyTheme = useTheme()
-
+const goToStudents = () => {
+  router.push('/students')
+}
 const options = controlledComputed(
   () => vuetifyTheme.name.value,
   () => {
@@ -76,7 +80,7 @@ const options = controlledComputed(
             colors: disabledColor,
             fontSize: '12px',
           },
-          formatter: value => `${value > 999 ? `${(value / 1000).toFixed(0)}` : value}k`,
+          formatter: value => `${value > 999 ? `${(value / 1000).toFixed(0)}` : value}`,
         },
       },
     }
@@ -93,7 +97,7 @@ const series = [
 <template>
   <VCard>
     <VCardItem>
-      <VCardTitle>Weekly Overview</VCardTitle>
+      <VCardTitle>Student's Performance</VCardTitle>
 
       <template #append>
         <div class="me-n3">
@@ -112,10 +116,14 @@ const series = [
 
       <div class="d-flex align-center mb-3">
         <h5 class="text-h5 me-4">45%</h5>
-        <p>Your teaching performance is 45% 😎 better compared to last month</p>
+        <p>Your student's performance is 45% 😎 better compared to last month</p>
       </div>
 
-      <VBtn block> Details </VBtn>
+      <VBtn
+        block
+        @click="goToStudents"
+        >Details</VBtn
+      >
     </VCardText>
   </VCard>
 </template>

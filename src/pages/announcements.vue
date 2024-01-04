@@ -1,38 +1,22 @@
 <script setup>
-import blankImage from '@images/images/blank.png'
-import csvImage from '@images/images/csv.png'
-import pdfImage from '@images/images/pdf.png'
-import xlsImage from '@images/images/xls.png'
-
 import Swal from 'sweetalert2'
 import { useTheme } from 'vuetify'
 import { supabase } from '../lib/supaBaseClient.js'
 
+const truncate = (text, length, suffix = '...') => {
+  if (text.length > length) {
+    return text.substring(0, length) + suffix
+  }
+  return text
+}
+
 // Components
 
-function getImageSrc(fileName) {
-  const extension = fileName.split('.').pop()
-  switch (extension.toLowerCase()) {
-    case 'csv':
-      return csvImage
-    case 'pdf':
-      return pdfImage
-    case 'xlsx':
-      return xlsImage
-    default:
-      return blankImage
-  }
-}
+const announcementsList = ref([])
 
+const showAnnouncementDialog = ref(false)
+const selectedAnnouncement = ref({})
 const vuetifyTheme = useTheme()
-
-const selectedFile = ref(null)
-
-const handleFileChange = event => {
-  selectedFile.value = event.target.files[0]
-  console.log('Selected file:', selectedFile.value)
-}
-
 const sheet = ref(false)
 
 // const props = defineProps({
@@ -44,6 +28,41 @@ const sheet = ref(false)
 // })
 const userUUID = localStorage.getItem('uuid')
 const teacherId = localStorage.getItem('teacher_id')
+
+async function fetchAnnouncements() {
+  let { data: announcements, error } = await supabase
+    .from('announcement')
+    .select(
+      `
+      id,
+      announcement_desc,
+      created_at,
+      teacher:announcement_teacher ( name )
+    `,
+    ) // Assuming you have set up foreign key relation correctly
+    .order('created_at', { ascending: false })
+
+  if (error) {
+    console.log('Error fetching announcements:', error)
+    return []
+  }
+  // Process data if necessary, e.g., formatting dates
+  console.log(announcements)
+  return announcements
+}
+
+const openAnnouncement = announcement => {
+  console.log('Selected announcement:', announcement)
+
+  // Ensure that the announcement has a teacher property before trying to open the dialog
+  if (!announcement.teacher) {
+    console.error('Announcement does not have teacher information:', announcement)
+    return
+  }
+
+  selectedAnnouncement.value = announcement
+  showAnnouncementDialog.value = true
+}
 
 const uploadFile = async () => {
   if (!selectedFile.value) {
@@ -57,16 +76,6 @@ const uploadFile = async () => {
     })
     return
   }
-
-  // Get the original file name
-  const originalFileName = selectedFile.value.name
-  console.log('Original file name:', originalFileName)
-
-  // Construct the new file name with uuid and original file name
-  const newFileName = `${userUUID}_${originalFileName}`
-  console.log('New file name for storage:', newFileName)
-
-  const filePath = `${newFileName}` // Use new file name for the path
 
   // Upload to Supabase Storage with the new file name
   const { error: uploadError } = await supabase.storage.from('assignments').upload(filePath, selectedFile.value)
@@ -169,7 +178,7 @@ const confirmDelete = async file => {
 }
 
 onMounted(async () => {
-  filesList.value = await fetchFiles()
+  announcementsList.value = await fetchAnnouncements()
 })
 </script>
 
@@ -181,7 +190,7 @@ onMounted(async () => {
       v-bind="props"
       @click="sheet = !sheet"
     >
-      Upload Assignment
+      Create Announcement
     </VBtn>
   </VRow>
   <div>
@@ -189,42 +198,50 @@ onMounted(async () => {
       <!-- Submitted Document Docs -->
       <VRow>
         <VChip class="mb-3 mt-6">
-          <p class="text-title ma-5">Uploaded Assignments</p>
+          <p class="text-title ma-5">Announcements</p>
         </VChip>
       </VRow>
 
       <VRow>
         <VCard
-          class="document-card ma-1"
-          v-for="file in filesList"
-          :key="file.uploadfile_filename"
-          cols="6"
+          class="announcement-card ma-1"
+          v-for="announcement in announcementsList"
+          :key="announcement.id"
+          @click="openAnnouncement(announcement)"
+          :cols="12"
+          :sm="6"
+          :md="6"
+          :xl="6"
+          :lg="6"
         >
-          <v-btn
-            icon
-            flat
-            color="transparent"
-            class="dots-button"
-            v-on="on"
-            @click="confirmDelete(file)"
-          >
-            <v-icon>mdi-dots-vertical</v-icon>
-          </v-btn>
-          <img
-            :src="getImageSrc(file.uploadfile_filename)"
-            alt="Document Icon"
-          />
-          <p class="file-name">{{ file.uploadfile_filename }}</p>
+          <div class="announcement-content">
+            <!-- Use optional chaining to safely access nested properties -->
+            <h3>{{ announcement.teacher?.name }}</h3>
+            <p>{{ truncate(announcement.announcement_desc, 100) }}</p>
+            <p class="timestamp">{{ new Date(announcement.created_at).toLocaleString() }}</p>
+          </div>
         </VCard>
-        <div
-          v-if="filesList.length === 0"
-          class="text-center my-5"
-        >
-          <p>No assignments uploaded yet.</p>
-        </div>
       </VRow>
     </VContainer>
-
+    <VDialog
+      v-model="showAnnouncementDialog"
+      persistent
+      max-width="600px"
+    >
+      <VCard>
+        <!-- Use optional chaining to safely access nested properties -->
+        <VCardTitle>{{ selectedAnnouncement.value.teacher?.name }}</VCardTitle>
+        <VCardText>{{ selectedAnnouncement.value.announcement_desc }}</VCardText>
+        <VCardActions>
+          <VSpacer />
+          <VBtn
+            text
+            @click="showAnnouncementDialog = false"
+            >Close</VBtn
+          >
+        </VCardActions>
+      </VCard>
+    </VDialog>
     <div class="text-center">
       <VDialog
         v-model="sheet"
@@ -271,40 +288,21 @@ onMounted(async () => {
   z-index: 1050;
 }
 
-.document-card {
-  width: 180px;
-  height: 120px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  opacity: 0.8;
-  position: relative;
+.announcement-card {
+  padding: 15px;
+  width: 40%;
 }
 
-.document-card img {
-  display: block; /* or 'flex' */
-  width: 50px;
-  height: auto; /* maintain aspect ratio */
-  margin-bottom: 15px; /* horizontal auto margins for centering block elements */
-}
-
-.file-name {
-  text-align: center;
-  margin-bottom: 2px;
-  padding: 0 10px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 170px;
-  font-size: 12px;
+.announcement-content h3 {
   font-weight: bold;
 }
 
-.dots-button {
-  position: absolute;
-  top: 1px;
-  right: 1px;
-  z-index: 10;
+.announcement-content p {
+  margin: 5px 0;
+}
+
+.timestamp {
+  font-size: 0.8em;
+  color: #777;
 }
 </style>
