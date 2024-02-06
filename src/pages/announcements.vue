@@ -13,12 +13,45 @@ const truncate = (text, length, suffix = '...') => {
 // Components
 
 const announcementsList = ref([])
-
+const createAnnouncementDialog = ref(false)
+const newAnnouncement = ref('')
 const showAnnouncementDialog = ref(false)
 const selectedAnnouncement = ref({})
 const vuetifyTheme = useTheme()
 const sheet = ref(false)
 
+const createAnnouncement = async () => {
+  try {
+    const { error } = await supabase.from('announcement').insert([
+      {
+        announcement_desc: newAnnouncement.value,
+        announcement_teacher: teacherId,
+      },
+    ])
+
+    if (error) throw error
+
+    // Refresh the announcements list
+    announcementsList.value = await fetchAnnouncements()
+
+    // Reset the form and close the dialog
+    newAnnouncement.value = ''
+    createAnnouncementDialog.value = false
+
+    Swal.fire({
+      title: 'Success!',
+      text: 'Announcement created successfully.',
+      icon: 'success',
+    })
+  } catch (error) {
+    console.error('Error creating announcement:', error)
+    Swal.fire({
+      title: 'Error!',
+      text: `Error creating announcement: ${error.message}`,
+      icon: 'error',
+    })
+  }
+}
 // const props = defineProps({
 
 //   data: {
@@ -54,127 +87,56 @@ async function fetchAnnouncements() {
 const openAnnouncement = announcement => {
   console.log('Selected announcement:', announcement)
 
-  // Ensure that the announcement has a teacher property before trying to open the dialog
+  // Check if the announcement has a teacher property
   if (!announcement.teacher) {
     console.error('Announcement does not have teacher information:', announcement)
-    return
+    // Set a default teacher object with an empty name
+    announcement.teacher = { name: 'Unknown' }
   }
 
   selectedAnnouncement.value = announcement
   showAnnouncementDialog.value = true
 }
 
-const uploadFile = async () => {
-  if (!selectedFile.value) {
-    await Swal.fire({
-      title: 'Error!',
-      text: 'No file selected.',
-      icon: 'error',
-      customClass: {
-        container: 'high-z-index-swal',
-      },
-    })
-    return
-  }
+const isEditing = ref(false)
+const editedAnnouncementDesc = ref('')
 
-  // Upload to Supabase Storage with the new file name
-  const { error: uploadError } = await supabase.storage.from('assignments').upload(filePath, selectedFile.value)
-
-  if (uploadError) {
-    console.error('Error uploading file:', uploadError)
-    Swal.fire({
-      title: 'Error!',
-      text: 'Error uploading file.',
-      icon: 'error',
-      customClass: {
-        container: 'high-z-index-swal',
-      },
-    })
-    return
-  }
-
-  const { error: dbError } = await supabase.from('uploadfile').insert([
-    {
-      uploadfile_filename: originalFileName, // Keep the original file name in the database
-      uploadfile_company: teacher_id,
-      uploadfile_uuid: userUUID,
-    },
-  ])
-
-  if (dbError) {
-    console.error('Error saving file info to database:', dbError)
-    Swal.fire({
-      title: 'Error!',
-      text: 'Error saving file info to database.',
-      icon: 'error',
-      customClass: { container: 'high-z-index-swal' },
-    })
-  }
-
-  selectedFile.value = null
-
-  // Update the files list
-  filesList.value = await fetchFiles()
-
-  Swal.fire({
-    title: 'Success!',
-    text: 'Your file has been uploaded.',
-    icon: 'success',
-    customClass: { container: 'high-z-index-swal' },
-    customClass: {
-      container: 'high-z-index-swal',
-    },
-  })
+const startEditing = () => {
+  editedAnnouncementDesc.value = selectedAnnouncement.value.announcement_desc
+  isEditing.value = true
 }
 
-async function fetchFiles() {
-  let { data: files, error } = await supabase
-    .from('uploadfile')
-    .select('uploadfile_filename')
-    .eq('uploadfile_teacher', teacherId)
+const saveEdit = async () => {
+  try {
+    const { error } = await supabase
+      .from('announcement')
+      .update({ announcement_desc: editedAnnouncementDesc.value })
+      .eq('id', selectedAnnouncement.value.id)
 
-  if (error) console.log('Error fetching files:', error)
-  else return files
+    if (error) throw error
+
+    // Update announcements list
+    announcementsList.value = await fetchAnnouncements()
+    showAnnouncementDialog.value = false
+  } catch (error) {
+    console.error('Error updating announcement:', error)
+    Swal.fire('Error!', 'Could not update the announcement.', 'error')
+  }
 }
 
-const filesList = ref([])
+const deleteAnnouncement = async () => {
+  try {
+    const { error } = await supabase.from('announcement').delete().eq('id', selectedAnnouncement.value.id)
 
-const confirmDelete = async file => {
-  Swal.fire({
-    title: 'Are you sure?',
-    text: `You won't be able to revert the deletion of ${file.uploadfile_filename}!`,
-    icon: 'warning',
-    showCancelButton: true,
-    confirmButtonColor: '#3085d6',
-    cancelButtonColor: '#d33',
-    confirmButtonText: 'Yes, delete it!',
-  }).then(async result => {
-    if (result.isConfirmed) {
-      try {
-        let { error } = await supabase
-          .from('uploadfile')
-          .delete()
-          .match({ uploadfile_filename: file.uploadfile_filename, uploadfile_teacher: teacherId })
+    if (error) throw error
 
-        if (error) throw error
-
-        // Remove the file from the filesList
-        filesList.value = filesList.value.filter(f => f.uploadfile_filename !== file.uploadfile_filename)
-
-        Swal.fire({
-          title: 'Deleted!',
-          text: 'Your file has been deleted.',
-          icon: 'success',
-        })
-      } catch (error) {
-        Swal.fire({
-          title: 'Error!',
-          text: 'There was a problem deleting your file.',
-          icon: 'error',
-        })
-      }
-    }
-  })
+    // Update announcements list
+    announcementsList.value = await fetchAnnouncements()
+    showAnnouncementDialog.value = false
+  } catch (error) {
+    console.error('Error deleting announcement:', error)
+    Swal.fire('Error!', 'Could not delete the announcement.', 'error')
+  }
 }
 
 onMounted(async () => {
@@ -187,8 +149,7 @@ onMounted(async () => {
     <VSpacer />
     <VBtn
       color="primary"
-      v-bind="props"
-      @click="sheet = !sheet"
+      @click="createAnnouncementDialog = true"
     >
       Create Announcement
     </VBtn>
@@ -229,51 +190,74 @@ onMounted(async () => {
       max-width="600px"
     >
       <VCard>
-        <!-- Use optional chaining to safely access nested properties -->
         <VCardTitle>{{ selectedAnnouncement.value.teacher?.name }}</VCardTitle>
-        <VCardText>{{ selectedAnnouncement.value.announcement_desc }}</VCardText>
+
+        <VCardText v-if="!isEditing">
+          {{ selectedAnnouncement.value.announcement_desc }}
+        </VCardText>
+        <VTextarea
+          v-else
+          v-model="editedAnnouncementDesc"
+          label="Edit Announcement"
+          rows="5"
+        />
+
         <VCardActions>
           <VSpacer />
+          <VBtn
+            icon
+            @click="startEditing"
+          >
+            <VIcon>mdi-pencil</VIcon>
+          </VBtn>
+          <VBtn
+            icon
+            @click="deleteAnnouncement"
+          >
+            <VIcon>mdi-trash-can</VIcon>
+          </VBtn>
           <VBtn
             text
             @click="showAnnouncementDialog = false"
             >Close</VBtn
+          >
+          <VBtn
+            v-if="isEditing"
+            color="primary"
+            @click="saveEdit"
+            >Save</VBtn
           >
         </VCardActions>
       </VCard>
     </VDialog>
     <div class="text-center">
       <VDialog
-        v-model="sheet"
-        activator="parent"
-        width="60%"
-        class="overlaying-component-class"
+        v-model="createAnnouncementDialog"
+        persistent
+        max-width="600px"
       >
-        <VCard class="pa-10">
-          <VContainer
-            class="pa-5 rounded-lg mt-2 border-2"
-            style="background-color: var(--v-theme-on-surface); border: 2px solid #8a8d93"
-          >
-            <!--
-                <div class="text-overline text-start ml-10">
-                File Menu :
-                </div> 
-              -->
-            <div class="text-overline text-start ml-10 text-title">File Upload :</div>
-            <VFileInput
-              @change="handleFileChange"
-              z
-              counter
-              truncate-length="15"
+        <VCard>
+          <VCardTitle>Create New Announcement</VCardTitle>
+          <VCardText>
+            <VTextarea
+              v-model="newAnnouncement"
+              label="Announcement Description"
+              rows="5"
             />
-          </VContainer>
-          <VBtn
-            class="mt-5"
-            prepend-icon="mdi-send-variant"
-            @click="uploadFile"
-          >
-            Upload
-          </VBtn>
+          </VCardText>
+          <VCardActions>
+            <VSpacer />
+            <VBtn
+              text
+              @click="createAnnouncementDialog = false"
+              >Cancel</VBtn
+            >
+            <VBtn
+              color="primary"
+              @click="createAnnouncement"
+              >Create</VBtn
+            >
+          </VCardActions>
         </VCard>
       </VDialog>
     </div>
