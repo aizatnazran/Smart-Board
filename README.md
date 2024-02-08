@@ -1,6 +1,6 @@
-# vue
+# About
 
-This template should help get you started developing with Vue 3 in Vite.
+An educational dashboard for online learning. Used by educators to track progress in an online learning platform. This is a personal project made by a Vue dashboard template and Supabase for back-end.
 
 ## Recommended IDE Setup
 
