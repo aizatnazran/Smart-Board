@@ -1,7 +1,7 @@
 <template>
   <div
     class="h-100 d-flex align-center justify-space-between"
-    style="font-size: small;"
+    style="font-size: small"
   >
     <!-- 👉 Footer: left content -->
     <span class="d-flex align-center">
@@ -14,27 +14,32 @@
         size="1.00rem"
         class="mx-1"
       />
-      By <a
+      By
+      <a
         href="https://aserious.co"
         target="_blank"
         rel="noopener noreferrer"
         class="text-primary ms-1"
-      >A Serious AI</a>
+        >Aizat Nazran</a
+      >
     </span>
     <!-- 👉 Footer: right content -->
     <span class="d-md-flex gap-x-4 text-primary d-none">
       <a
         href="#"
         target="noopener noreferrer"
-      >Latest Updates</a>
+        >Latest Updates</a
+      >
       <a
         href="#"
         target="noopener noreferrer"
-      >Term & Condition</a>
+        >Term & Condition</a
+      >
       <a
         href="#"
         target="noopener noreferrer"
-      >Company Policy</a>
+        >Company Policy</a
+      >
     </span>
   </div>
 </template>

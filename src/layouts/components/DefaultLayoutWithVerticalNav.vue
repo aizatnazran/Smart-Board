@@ -107,8 +107,8 @@ const upgradeBanner = computed(() => {
       />
       <VerticalNavLink
         :item="{
-          title: 'Template',
-          icon: 'mdi-arrange-send-backward',
+          title: 'Calendar',
+          icon: 'mdi-calendar-account',
           to: '/comingsoon2',
         }"
       />
