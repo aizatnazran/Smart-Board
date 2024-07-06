@@ -2,8 +2,6 @@
 
 An educational dashboard for online learning. Used by educators to track progress in an online learning platform. This is a personal project made by a Vue dashboard template and Supabase for back-end.
 
-![Edu](edu.png)
-
 ## Recommended IDE Setup
 
 [VSCode](https://code.visualstudio.com/) + [Volar](https://marketplace.visualstudio.com/items?itemName=johnsoncodehk.volar) (and disable Vetur).
